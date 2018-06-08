@@ -1,0 +1,87 @@
+#version 430
+
+layout (local_size_x = 30,
+        local_size_z = 30) in;
+
+struct Voxel
+{
+    vec4 velocity;
+    vec4 staggeredVelocity;
+    vec4 newStaggeredVelocity;
+};
+
+layout(binding = 2) buffer voxelsBlock
+{
+    Voxel voxels[];
+};
+
+void main()
+{
+    float alpha = 0.8; // PIC coefficient
+
+    uint index = (gl_GlobalInvocationID.y*30*30) + (gl_GlobalInvocationID.z*30) + gl_GlobalInvocationID.x;
+
+    vec3 v =  voxels[index].velocity.xyz;                       // velocity
+    vec3 nev = vec3(0.0);                                       // new velocity
+
+    vec3 sv = voxels[index].staggeredVelocity.xyz;                  // staggered velocity
+    vec3 nesv = voxels[index].newStaggeredVelocity.xyz;             // new staggered velocity
+    vec3 desv = nesv - sv;                                      // delta between the new and the before sv
+
+    vec3 nsv = vec3(0.0).xyz;                                   // neighbour staggered velocity
+    vec3 nnesv = vec3(0.0).xyz;                                 // neighbour new staggered velocity
+    vec3 densv = vec3(0.0).xyz;                                 // delta between the new and the before nsv
+
+    // Check if the voxel has a neighbour in x axis
+    if(mod(gl_LocalInvocationIndex, 30) == 0)
+    {
+        v.x = sv.x;
+    }
+    else
+    {
+        nsv.x = voxels[index - 1].staggeredVelocity.x;
+        nnesv.x = voxels[index - 1].newStaggeredVelocity.x;
+        densv.x = nnesv.x - nsv.x ;
+
+        float picInter = nnesv.x + (nesv.x-nnesv.x)*0.5;
+        float flipInter = v.x + (densv.x + (desv.x-densv.x)*0.5);
+
+        v.x = alpha*picInter + (1-alpha)*flipInter;
+    }
+
+    // Check if the voxel has a neighbour in y axis
+    if(gl_WorkGroupID.y == 0)
+    {
+        sv.y = v.y;
+    }
+    else
+    {
+        nsv.y = voxels[index - 900].staggeredVelocity.y;
+        nnesv.y = voxels[index - 900].newStaggeredVelocity.y;
+        densv.y = nnesv.y - nsv.y ;
+
+        float picInter = nnesv.y + (nesv.y-nnesv.y)*0.5;
+        float flipInter = v.y + (densv.y + (desv.y-densv.y)*0.5);
+
+        v.y = alpha*picInter + (1-alpha)*flipInter;
+    }
+
+    // Check if the voxel has a neighbour in z axis
+    if(gl_LocalInvocationIndex >= 870)
+    {
+        sv.z = v.z;
+    }
+    else
+    {
+        nsv.z = voxels[index + 30].staggeredVelocity.z;
+        nnesv.z = voxels[index + 30].newStaggeredVelocity.z;
+        densv.z = nnesv.z - nsv.z ;
+
+        float picInter = nnesv.z + (nesv.z-nnesv.z)*0.5;
+        float flipInter = v.z + (densv.z + (desv.z-densv.z)*0.5);
+
+        v.z = alpha*picInter + (1-alpha)*flipInter;
+    }
+
+    voxels[index].velocity = vec4(v,0.0);
+}

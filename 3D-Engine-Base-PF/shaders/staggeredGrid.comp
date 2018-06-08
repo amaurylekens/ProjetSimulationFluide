@@ -1,0 +1,61 @@
+#version 430
+
+layout (local_size_x = 30,
+        local_size_z = 30) in;
+
+struct Voxel
+{
+    vec4 velocity;
+    vec4 staggeredVelocity;
+    vec4 newStaggeredVelocity;
+};
+
+layout(binding = 2) buffer voxelsBlock
+{
+    Voxel voxels[];
+};
+
+void main()
+{
+    uint index = (gl_GlobalInvocationID.y*30*30) + (gl_GlobalInvocationID.z*30) + gl_GlobalInvocationID.x;
+    vec3 v = voxels[index].velocity.xyz;
+    vec3 nv = vec3(0.0).xyz;    // neighbour velocity
+    vec3 sv = vec3(0.0).xyz;    // staggered velocity
+
+    // Check if the voxel has a neighbour in x axis
+    if(mod(gl_LocalInvocationIndex, 29) == 0 && gl_LocalInvocationIndex != 0)
+    {
+        sv.x = v.x;
+    }
+    else
+    {
+        nv.x = voxels[index + 1].velocity.x;
+        sv.x = v.x + (nv.x-v.x)*0.5;
+    }
+
+    // Check if the voxel has a neighbour in y axis
+    if(gl_WorkGroupID.y == 29)
+    {
+        sv.y = v.y;
+    }
+    else
+    {
+        nv.y = voxels[index + 900].velocity.y;
+        sv.y = v.y + (nv.y-v.y)*0.5;
+    }
+
+    // Check if the voxel has a neighbour in z axis
+    if(gl_LocalInvocationIndex <= 29)
+    {
+        sv.z = v.z;
+    }
+    else
+    {
+        nv.z = voxels[index - 30].velocity.z;
+        sv.z = v.z + (nv.z-v.z)*0.5;
+    }
+
+    voxels[index].staggeredVelocity = vec4(sv, 0.0);
+    voxels[index].newStaggeredVelocity = vec4(sv, 0.0);
+     
+}

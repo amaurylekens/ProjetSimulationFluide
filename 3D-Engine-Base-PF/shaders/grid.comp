@@ -1,0 +1,36 @@
+#version 430
+
+layout (local_size_x = 1000) in;
+
+struct Particle
+{
+    vec4 position;
+    vec4 velocity;
+};
+
+struct Voxel
+{
+    vec4 velocity;
+    vec4 staggeredVelocity;
+    vec4 newStaggeredVelocity;
+};
+
+layout(binding = 1) buffer particlesBlock
+{
+    Particle particles[];
+};
+
+layout(binding = 2) buffer voxelsBlock
+{
+    Voxel voxels[];
+};
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    vec3 v = particles[index].velocity.xyz;
+    vec3 p = particles[index].position.xyz;
+
+    uint voxel_index = uint((30.0*30.0*p.y) + (30.0*p.z) + p.x);
+    voxels[voxel_index].velocity = vec4(v, 1.0);  
+}

@@ -1,0 +1,26 @@
+
+#version 430
+
+layout (local_size_x = 1024) in;
+
+struct Particle
+{
+    vec4 position;
+    vec4 velocity;
+};
+
+layout(binding = 1) buffer particlesBlock
+{
+    Particle particles[];
+};
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    vec3 p = particles[index].position.xyz;
+    vec3 v = particles[index].velocity.xyz;
+    
+    p += (1.0/60.0) * v;
+
+    particles[index].position = vec4(p, 1.0);
+}
